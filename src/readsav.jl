@@ -22,6 +22,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+
 using Logging
 
 RECTYPE_DICT = Dict()
@@ -43,20 +44,20 @@ RECTYPE_DICT[19] = "NOTICE"
     Define the different data types that can be found in an IDL save file
 """
 DTYPE_DICT = Dict(1 => UInt8,
-              2 => Int16,
-              3 => Int32,
-              4 => Float32,
-              5 => Float64,
-              6 => ComplexF64,
-              7 => DataType,
-              8 => DataType,
-              9 => DataType,
-              10 => DataType,
-              11 => DataType,
-              12 => UInt16,
-              13 => UInt32,
-              14 => Int64,
-              15 => UInt64)
+                2 => Int16,
+                3 => Int32,
+                4 => Float32,
+                5 => Float64,
+                6 => ComplexF64,
+                7 => DataType,
+                8 => DataType,
+                9 => DataType,
+                10 => DataType,
+                11 => DataType,
+                12 => UInt16,
+                13 => UInt32,
+                14 => Int64,
+                15 => UInt64)
 
 
 """
@@ -124,52 +125,54 @@ end
 
 # -------------------------------- Descriptors -------------------------------- #
 struct ArrayDesc 
-    arrStart
-    nBytes
-    nElements
-    nDims 
-    nMax 
+    arrStart::Int32
+    nBytes::Int32
+    nElements::Int32
+    nDims::Int32
+    nMax::Int32
     dims::Vector{Int32}
 end 
 
 mutable struct TagDesc 
     name::String
-    offset
-    typeCode
+    offset::UInt64
+    typeCode::Int32
     array::Bool
     structure::Bool
     scalar::Bool
 end
 
 struct StructDesc
-    name
-    nTags
-    nBytes
-    preDef
-    inherits
-    isSuper
-    tagTable
+    name::String
+    nTags::Int32
+    nBytes::Int32
+    preDef::Int32
+    inherits::Int32
+    isSuper::Int32
+    tagTable::Vector{TagDesc}
     arrTable::Dict
-    structTable
-    className
-    nSupClasses
-    supClassNames
-    supClassTable
+    structTable::Dict
+    className::Union{String,Nothing}
+    nSupClasses::Union{Int32,Nothing}
+    supClassNames::Union{Vector{String},Nothing}
+    supClassTable::Union{Vector{StructDesc},Nothing}
 end
 
 struct TypeDesc 
     name::Symbol # :ARRAY or :STRUCTURE
-    typeCode
-    varflags
-    arrayDesc
-    structDesc
+    typeCode::Int32
+    varflags::Int32
+    arrayDesc::ArrayDesc
+    structDesc::Union{StructDesc,Nothing}
 end
 
 
 
 
-# Functions to read in Types
-# Values come in chunks of 4 or 8 bytes
+"""
+    Functions to read in Types
+    Values come in chunks of 4 or 8 bytes
+"""
 function readByte(s::IOStream)
     var = read(s, 1)
     skip(s, 3)
@@ -177,41 +180,41 @@ function readByte(s::IOStream)
 end
 
 function readLong(s::IOStream)
-    return hton(read(s, Int32))
+    return ntoh(read(s, Int32))
 end
 
 function readInt16(s::IOStream)
     skip(s, 2)
-    return hton(read(s, Int16))
+    return ntoh(read(s, Int16))
 end
 
 function readInt32(s::IOStream)
-    return hton(read(s, Int32))
+    return ntoh(read(s, Int32))
 end
 
 function readInt64(s::IOStream)
-    return hton(read(s, Int64))
+    return ntoh(read(s, Int64))
 end
 
 function readUInt16(s::IOStream)
     skip(s, 2)
-    return hton(read(s, UInt16))
+    return ntoh(read(s, UInt16))
 end
 
 function readUInt32(s::IOStream)
-    return hton(read(s, UInt32))
+    return ntoh(read(s, UInt32))
 end
 
 function readUInt64(s::IOStream)
-    return hton(read(s, UInt64))
+    return ntoh(read(s, UInt64))
 end
 
 function readFloat32(s::IOStream)
-    return hton(read(s, Float32))
+    return ntoh(read(s, Float32))
 end
 
 function readFloat64(s::IOStream)
-    return hton(read(s, Float64))
+    return ntoh(read(s, Float64))
 end
 
 
@@ -240,7 +243,7 @@ function readString(s::IOStream)
         chars = ""
     end
 
-    return chars
+    chars
 end
 
 function readStringData(s::IOStream)
@@ -256,11 +259,13 @@ function readStringData(s::IOStream)
         stringData = ""
     end
 
-    return stringData
+    stringData
 end
 
+"""
+    Read in a variable with specified data type
+"""
 function readData(s::IOStream, typeCode)
-    # Read in a variable with specified data type
     if typeCode == 1
         if readInt32(s) != 1
             error("Error occured while reading byte variable")
@@ -317,20 +322,12 @@ function readArray(s::IOStream, typeCode, arrayDesc::ArrayDesc)
         end
         # Read bytes as numpy array
         bytes = read(s, arrayDesc.nBytes)
-        @show DTYPE_DICT[typeCode]
-        @show [Int(b) for b in bytes]
-        @show length(bytes)
-        array = Vector(reinterpret(DTYPE_DICT[typeCode], bytes))
-        @show length(array)
-        # array = np.frombuffer(read(s,arrayDesc.nBytes),
-        #                       dtype=DTYPE_DICT[typeCode])
+        array = Vector(ntoh.(reinterpret(DTYPE_DICT[typeCode], bytes)))
+
     elseif typeCode in [2, 12]
         # These are 2 byte types, need to skip every two as they are not packed
         bytes = read(s, arrayDesc.nBytes * 2)
-        array = Vector(reinterpret(DTYPE_DICT[typeCode], bytes))[2:2:end]
-
-        # array = np.frombuffer(s.read(arrayDesc.nBytes*2),
-        #                       dtype=DTYPE_DICT[typeCode])[1::2]
+        array = Vector(ntoh.(reinterpret(DTYPE_DICT[typeCode], bytes)))[2:2:end]
 
     else
         array = []  # Read bytes into list
@@ -366,6 +363,7 @@ function readStructure(s::IOStream, arrayDesc::ArrayDesc, structDesc::StructDesc
 
     #no need for type informations since we are using Julia Dicts.
     # might be non optimal
+
     # dtype = [] 
     # for col in columns
     #     cname_lower = lowercase(col.name)
@@ -618,9 +616,9 @@ function readRecord(s::IOStream)
         end
 
         if recType == "VARIABLE"
-            record = Variable(varName,data)
+            record = Variable(varName, data)
         else
-            record = HeapData(heapIndex,data)
+            record = HeapData(heapIndex, data)
         end
 
     elseif recType == "TIMESTAMP"
@@ -672,18 +670,14 @@ function readRecord(s::IOStream)
 end
 
 function replaceHeap(variable, heap)
+    error("Julia version does not implement Heap support.")
 end
 
 
 """
-    Read an IDL .sav file
-    
-    Parameters
-    ----------
-    fname : String
-        Name of the IDL save file
-    verbose : bool, optional
-        Print out information about the .sav file
+    readsav(fname; verbose = false)
+
+    Read an IDL .sav file. If verbose, print out information about the .sav file.
 """
 function readsav(fname::String; verbose = false)
 
@@ -714,9 +708,47 @@ function readsav(fname::String; verbose = false)
         typeof(r) == EndMarker && break
     end
     close(f)
-    records
+
+    variables = Dict()
+    meta = Dict()
+    for r in records
+        if typeof(r) == Variable
+            variables[r.name] = r.data
+        elseif typeof(r) in [Timestamp, Version, Identification]
+            meta[typeof(r)] = r
+        end
+    end 
+
+    if verbose
+        # Print out timestamp info about the file
+        if haskey(meta, Timestamp)
+            record = meta[Timestamp]
+            println("-"^50)
+            println("Date: $(record.date)")
+            println("User: $(record.user)")
+            println("Host: $(record.host)")
+        end
+
+        # Print out version info about the file
+        if haskey(meta, Version)
+            record = meta[Version]
+            println("-"^50)
+            println("Format: $(record.format)")
+            println("Architecture: $(record.arch)")
+            println("Operating System: $(record.os)")
+            println("IDL Version: $(record.release)")
+        end
+
+        # Print out identification info about the file
+        if haskey(meta, Identification)
+            record = meta[Identification]
+            println("-"^50)
+            println("Author: $(record.author)")
+            println("Title: $(record.title)")
+            println("ID Code: $(record.idcode)")
+        end
+        println("-"^50)
+    end 
+
+    variables
 end
-
-
-path = "/home/bkugler/Documents/DATA/HAPKE/resultats_photom_lab_pilorget_2016/lab_data/data_olivine_olv_corr.sav"
-readsav(path; verbose = true)
