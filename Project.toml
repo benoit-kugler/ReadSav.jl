@@ -1,0 +1,6 @@
+authors = ["BeKUGLER <benoit.kugler@inria.fr>"]
+name = "ReadSav"
+uuid = "5fe14d8e-1335-11e9-044e-d32bf7b6a593"
+version = "0.1.0"
+
+[deps]
