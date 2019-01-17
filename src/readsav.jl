@@ -758,5 +758,3 @@ function readsav(fname::String; verbose = false)
 end
 
 
-path = "/home/bkugler/Documents/DATA/HAPKE/resultats_photom_lab_pilorget_2016/result_photom/OLV_new_optim_100iter/inversion_OLV_new_000.sav"
-readsav(path)
