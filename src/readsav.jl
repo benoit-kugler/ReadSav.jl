@@ -340,9 +340,8 @@ function readArray(s::IOStream, typeCode, arrayDesc::ArrayDesc)
 
     # Reshape array if needed
     if arrayDesc.nDims > 1
-        dims = [Int64(arrayDesc.dims[n]) for n in 1:arrayDesc.nDims]
-        dims = reverse(dims)
-        array = reshape(array, dims...)
+        dims = [Int64(arrayDesc.dims[n]) for n in 1:arrayDesc.nDims]        
+        array = reshape(array, dims...) # Fortran order
     end
 
     # Go to next alignment position
@@ -756,5 +755,3 @@ function readsav(fname::String; verbose = false)
 
     variables
 end
-
-
