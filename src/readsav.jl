@@ -159,10 +159,10 @@ struct StructDesc
 end
 
 struct TypeDesc 
-    name::Symbol # :ARRAY or :STRUCTURE
+    name::Union{Symbol, Nothing} # :ARRAY or :STRUCTURE
     typeCode::Int32
     varflags::Int32
-    arrayDesc::ArrayDesc
+    arrayDesc::Union{ArrayDesc, Nothing}
     structDesc::Union{StructDesc,Nothing}
 end
 
@@ -566,6 +566,10 @@ function readTypeDesc(s::IOStream)
         name = :ARRAY
         arrayDesc = readArrayDesc(s)
         structDesc = nothing
+    else 
+        name = nothing
+        arrayDesc = nothing
+        structDesc = nothing
     end
 
     TypeDesc(name, typeCode, varflags, arrayDesc, structDesc)
@@ -752,3 +756,7 @@ function readsav(fname::String; verbose = false)
 
     variables
 end
+
+
+path = "/home/bkugler/Documents/DATA/HAPKE/resultats_photom_lab_pilorget_2016/result_photom/OLV_new_optim_100iter/inversion_OLV_new_000.sav"
+readsav(path)
