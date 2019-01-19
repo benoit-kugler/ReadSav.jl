@@ -328,7 +328,7 @@ function readArray(s::IOStream, typeCode, arrayDesc::ArrayDesc)
         # These are 2 byte types, need to skip every two as they are not packed
         bytes = read(s, arrayDesc.nBytes * 2)
         array = Vector(ntoh.(reinterpret(DTYPE_DICT[typeCode], bytes)))[2:2:end]
-
+ 
     else
         array = []  # Read bytes into list
         for i in 1:(arrayDesc.nElements)
